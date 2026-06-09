@@ -1,0 +1,549 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<title>Sistema de Inventario de Bebidas</title>
+
+<script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+<style>
+
+*{
+margin:0;
+padding:0;
+box-sizing:border-box;
+font-family:Segoe UI;
+}
+
+body{
+background:#f4f6f9;
+padding:20px;
+}
+
+header{
+background:#0d6efd;
+color:white;
+padding:20px;
+border-radius:10px;
+margin-bottom:20px;
+}
+
+header h1{
+text-align:center;
+}
+
+.panel{
+background:white;
+padding:20px;
+border-radius:10px;
+box-shadow:0 0 10px rgba(0,0,0,.1);
+margin-bottom:20px;
+}
+
+.grid{
+display:grid;
+grid-template-columns:repeat(auto-fit,minmax(250px,1fr));
+gap:10px;
+}
+
+input{
+padding:10px;
+border:1px solid #ccc;
+border-radius:6px;
+width:100%;
+}
+
+button{
+padding:10px 15px;
+border:none;
+border-radius:6px;
+cursor:pointer;
+font-weight:bold;
+}
+
+.btn-primary{
+background:#0d6efd;
+color:white;
+}
+
+.btn-success{
+background:#198754;
+color:white;
+}
+
+.btn-warning{
+background:#ffc107;
+}
+
+.btn-danger{
+background:#dc3545;
+color:white;
+}
+
+.btn-info{
+background:#0dcaf0;
+}
+
+.actions{
+display:flex;
+gap:10px;
+flex-wrap:wrap;
+margin-top:15px;
+}
+
+table{
+width:100%;
+border-collapse:collapse;
+margin-top:20px;
+background:white;
+}
+
+table th{
+background:#0d6efd;
+color:white;
+padding:10px;
+}
+
+table td{
+padding:10px;
+border:1px solid #ddd;
+text-align:center;
+}
+
+tr:nth-child(even){
+background:#f9f9f9;
+}
+
+.search{
+margin-bottom:15px;
+}
+
+</style>
+
+</head>
+<body>
+
+<header>
+<h1>CONTROL DE INVENTARIOS DE BEBIDAS</h1>
+</header>
+
+<div class="panel">
+
+<div class="grid">
+
+<input type="text" id="modelo" placeholder="Modelo y Marca">
+
+<input type="text" id="caracteristicas" placeholder="Características">
+
+<input type="number" id="precio" placeholder="Precio">
+
+<input type="number" id="stock" placeholder="Stock">
+
+<input type="number" id="existentes" placeholder="Unidades Existentes">
+
+<input type="number" id="vendidas" placeholder="Unidades Vendidas">
+
+<input type="number" id="danadas" placeholder="Unidades Dañadas">
+
+</div>
+
+<div class="actions">
+
+<button class="btn-success" onclick="guardar()">
+Registrar Producto
+</button>
+
+<button class="btn-primary" onclick="exportarExcel()">
+Exportar Excel
+</button>
+
+<label class="btn-info">
+Cargar Excel
+<input type="file"
+id="excelFile"
+accept=".xlsx,.xls"
+hidden
+onchange="cargarExcel(event)">
+</label>
+
+</div>
+
+</div>
+
+<div class="panel">
+
+<input
+type="text"
+id="buscar"
+class="search"
+placeholder="Buscar producto..."
+onkeyup="buscarProducto()">
+
+<table>
+
+<thead>
+<tr>
+<th>N°</th>
+<th>Modelo y Marca</th>
+<th>Características</th>
+<th>Precio</th>
+<th>Stock</th>
+<th>Existentes</th>
+<th>Vendidas</th>
+<th>Dañadas</th>
+<th>Acciones</th>
+</tr>
+</thead>
+
+<tbody id="tablaProductos"></tbody>
+
+</table>
+
+</div>
+
+<script>
+
+let inventario = [];
+let editando = -1;
+
+function renderTabla(){
+
+let tbody =
+document.getElementById("tablaProductos");
+
+tbody.innerHTML="";
+
+inventario.forEach((p,index)=>{
+
+tbody.innerHTML += `
+<tr>
+
+<td>${index+1}</td>
+
+<td>${p.modelo}</td>
+
+<td>${p.caracteristicas}</td>
+
+<td>S/. ${p.precio}</td>
+
+<td>${p.stock}</td>
+
+<td>${p.existentes}</td>
+
+<td>${p.vendidas}</td>
+
+<td>${p.danadas}</td>
+
+<td>
+
+<button
+class="btn-warning"
+onclick="editar(${index})">
+Editar
+</button>
+
+<button
+class="btn-danger"
+onclick="eliminar(${index})">
+Eliminar
+</button>
+
+</td>
+
+</tr>
+`;
+
+});
+
+}
+
+function obtenerFormulario(){
+
+return{
+
+modelo:
+document.getElementById("modelo").value,
+
+caracteristicas:
+document.getElementById("caracteristicas").value,
+
+precio:
+document.getElementById("precio").value,
+
+stock:
+document.getElementById("stock").value,
+
+existentes:
+document.getElementById("existentes").value,
+
+vendidas:
+document.getElementById("vendidas").value,
+
+danadas:
+document.getElementById("danadas").value
+
+};
+
+}
+
+function limpiar(){
+
+document.querySelectorAll("input").forEach(i=>{
+
+if(i.type!=="file")
+i.value="";
+
+});
+
+editando=-1;
+
+}
+
+function guardar(){
+
+let datos = obtenerFormulario();
+
+if(!datos.modelo){
+
+Swal.fire(
+'Advertencia',
+'Ingrese modelo y marca',
+'warning'
+);
+
+return;
+}
+
+if(editando==-1){
+
+inventario.push(datos);
+
+Swal.fire(
+'Correcto',
+'Producto registrado',
+'success'
+);
+
+}else{
+
+inventario[editando]=datos;
+
+Swal.fire(
+'Actualizado',
+'Registro actualizado',
+'success'
+);
+
+}
+
+renderTabla();
+limpiar();
+
+}
+
+function editar(index){
+
+let p=inventario[index];
+
+document.getElementById("modelo").value=p.modelo;
+document.getElementById("caracteristicas").value=p.caracteristicas;
+document.getElementById("precio").value=p.precio;
+document.getElementById("stock").value=p.stock;
+document.getElementById("existentes").value=p.existentes;
+document.getElementById("vendidas").value=p.vendidas;
+document.getElementById("danadas").value=p.danadas;
+
+editando=index;
+
+}
+
+function eliminar(index){
+
+Swal.fire({
+
+title:'¿Eliminar producto?',
+text:'No podrá recuperarse',
+icon:'warning',
+showCancelButton:true,
+confirmButtonText:'Eliminar'
+
+}).then((result)=>{
+
+if(result.isConfirmed){
+
+inventario.splice(index,1);
+
+renderTabla();
+
+Swal.fire(
+'Eliminado',
+'Registro eliminado',
+'success'
+);
+
+}
+
+});
+
+}
+
+function buscarProducto(){
+
+let filtro=
+document.getElementById("buscar")
+.value.toLowerCase();
+
+let filas=
+document.querySelectorAll("#tablaProductos tr");
+
+filas.forEach(fila=>{
+
+fila.style.display=
+fila.innerText.toLowerCase()
+.includes(filtro)
+? ""
+: "none";
+
+});
+
+}
+
+function cargarExcel(event){
+
+let archivo =
+event.target.files[0];
+
+if(!archivo) return;
+
+let lector = new FileReader();
+
+lector.onload=(e)=>{
+
+let data =
+new Uint8Array(e.target.result);
+
+let workbook =
+XLSX.read(data,{type:'array'});
+
+let hoja =
+workbook.Sheets[
+workbook.SheetNames[0]
+];
+
+let json =
+XLSX.utils.sheet_to_json(
+hoja,
+{header:1}
+);
+
+inventario=[];
+
+for(let i=1;i<json.length;i++){
+
+let fila=json[i];
+
+if(fila.length>0){
+
+inventario.push({
+
+modelo:fila[0]||'',
+caracteristicas:fila[1]||'',
+precio:fila[2]||'',
+stock:fila[3]||'',
+existentes:fila[4]||'',
+vendidas:fila[5]||'',
+danadas:fila[6]||''
+
+});
+
+}
+
+}
+
+renderTabla();
+
+Swal.fire(
+'Excel cargado',
+'Datos importados correctamente',
+'success'
+);
+
+};
+
+lector.readAsArrayBuffer(archivo);
+
+}
+
+function exportarExcel(){
+
+let datos=[];
+
+datos.push([
+'Modelo y Marca',
+'Características',
+'Precio',
+'Stock',
+'Unidades Existentes',
+'Unidades Vendidas',
+'Unidades Dañadas'
+]);
+
+inventario.forEach(p=>{
+
+datos.push([
+p.modelo,
+p.caracteristicas,
+p.precio,
+p.stock,
+p.existentes,
+p.vendidas,
+p.danadas
+]);
+
+});
+
+let ws =
+XLSX.utils.aoa_to_sheet(datos);
+
+let wb =
+XLSX.utils.book_new();
+
+XLSX.utils.book_append_sheet(
+wb,
+ws,
+'Inventario'
+);
+
+let fecha =
+new Date();
+
+let nombre =
+"inventarios-" +
+fecha.getFullYear()+"-" +
+String(fecha.getMonth()+1).padStart(2,'0')+"-" +
+String(fecha.getDate()).padStart(2,'0')+"-" +
+String(fecha.getHours()).padStart(2,'0')+"-" +
+String(fecha.getMinutes()).padStart(2,'0')+"-" +
+String(fecha.getSeconds()).padStart(2,'0') +
+".xlsx";
+
+XLSX.writeFile(
+wb,
+nombre
+);
+
+Swal.fire(
+'Exportado',
+'Copia de seguridad generada',
+'success'
+);
+
+}
+
+</script>
+
+</body>
+</html>
