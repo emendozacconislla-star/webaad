@@ -1,0 +1,441 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Gestión de Prendas</title>
+
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11">
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+<script src="https://unpkg.com/html5-qrcode"></script>
+
+<style>
+*{
+margin:0;
+padding:0;
+box-sizing:border-box;
+font-family:Arial,sans-serif;
+}
+
+body{
+background:#f4f6f9;
+padding:20px;
+}
+
+header{
+background:#1e88e5;
+color:white;
+padding:15px;
+border-radius:10px;
+margin-bottom:20px;
+text-align:center;
+}
+
+.card{
+background:white;
+padding:15px;
+border-radius:10px;
+margin-bottom:20px;
+box-shadow:0 3px 10px rgba(0,0,0,.1);
+}
+
+button{
+padding:10px 15px;
+border:none;
+border-radius:6px;
+cursor:pointer;
+margin:5px;
+}
+
+.btn-primary{background:#1e88e5;color:white;}
+.btn-success{background:#43a047;color:white;}
+.btn-danger{background:#e53935;color:white;}
+.btn-warning{background:#fb8c00;color:white;}
+
+table{
+width:100%;
+border-collapse:collapse;
+margin-top:15px;
+}
+
+table th{
+background:#1e88e5;
+color:white;
+padding:10px;
+}
+
+table td{
+padding:10px;
+border:1px solid #ddd;
+text-align:center;
+}
+
+#reader{
+width:300px;
+margin:auto;
+}
+
+input[type=date]{
+padding:10px;
+width:250px;
+}
+
+@media(max-width:768px){
+table{
+font-size:12px;
+}
+}
+</style>
+</head>
+<body>
+
+<header>
+<h1>Sistema Simplificado de Gestión de Prendas</h1>
+</header>
+
+<div class="card">
+
+<button class="btn-primary" onclick="nuevaPrenda()">
+➕ Nueva Prenda
+</button>
+
+<button class="btn-success" onclick="exportarJSON()">
+📤 Exportar JSON
+</button>
+
+<button class="btn-warning" onclick="document.getElementById('importar').click()">
+📥 Importar JSON
+</button>
+
+<button class="btn-primary" onclick="abrirQR()">
+📷 Escanear QR
+</button>
+
+<input type="file" id="importar" hidden>
+
+</div>
+
+<div class="card">
+<h3>Calendario de Seguimiento</h3>
+<br>
+<input type="date" id="fechaSeguimiento">
+<button class="btn-success" onclick="guardarFecha()">
+Guardar
+</button>
+<div id="listaFechas"></div>
+</div>
+
+<div class="card">
+
+<table>
+<thead>
+<tr>
+<th>ID</th>
+<th>Marca</th>
+<th>Talla</th>
+<th>Color</th>
+<th>Fabricado</th>
+<th>Acciones</th>
+</tr>
+</thead>
+
+<tbody id="tablaPrendas"></tbody>
+
+</table>
+
+</div>
+
+<div class="card" id="qrContainer" style="display:none">
+<h3>Escáner QR</h3>
+<div id="reader"></div>
+</div>
+
+<script>
+
+let prendas = JSON.parse(localStorage.getItem("prendas")) || [
+
+{id:1,marca:"Nike",talla:"M",color:"Negro",fabricado:"Vietnam"},
+{id:2,marca:"Zara",talla:"L",color:"Blanco",fabricado:"Turquía"},
+{id:3,marca:"Levis",talla:"32",color:"Azul",fabricado:"México"},
+{id:4,marca:"Columbia",talla:"XL",color:"Gris",fabricado:"China"},
+{id:5,marca:"Adidas",talla:"S",color:"Azul Marino",fabricado:"Indonesia"},
+{id:6,marca:"H&M",talla:"M",color:"Beige",fabricado:"Bangladesh"},
+{id:7,marca:"Uniqlo",talla:"L",color:"Verde",fabricado:"China"},
+{id:8,marca:"Puma",talla:"M",color:"Negro",fabricado:"Vietnam"},
+{id:9,marca:"Mango",talla:"S",color:"Rosado",fabricado:"Turquía"},
+{id:10,marca:"Reebok",talla:"L",color:"Gris",fabricado:"India"},
+{id:11,marca:"Guess",talla:"XL",color:"Marrón",fabricado:"Pakistán"},
+{id:12,marca:"Forever21",talla:"M",color:"Rojo",fabricado:"Bangladesh"},
+{id:13,marca:"Vans",talla:"L",color:"Blanco",fabricado:"México"},
+{id:14,marca:"Dickies",talla:"34",color:"Verde Militar",fabricado:"Honduras"},
+{id:15,marca:"Under Armour",talla:"XL",color:"Azul",fabricado:"Jordania"},
+{id:16,marca:"Tommy Hilfiger",talla:"M",color:"Celeste",fabricado:"India"},
+{id:17,marca:"North Face",talla:"L",color:"Negro",fabricado:"Vietnam"},
+{id:18,marca:"Fila",talla:"S",color:"Morado",fabricado:"China"},
+{id:19,marca:"Calvin Klein",talla:"XL",color:"Gris Oscuro",fabricado:"Indonesia"},
+{id:20,marca:"Lacoste",talla:"M",color:"Verde",fabricado:"Perú"}
+
+];
+
+guardar();
+
+function guardar(){
+localStorage.setItem("prendas",JSON.stringify(prendas));
+cargarTabla();
+}
+
+function cargarTabla(){
+
+let html="";
+
+prendas.forEach((p,index)=>{
+
+html+=`
+<tr>
+<td>${p.id}</td>
+<td>${p.marca}</td>
+<td>${p.talla}</td>
+<td>${p.color}</td>
+<td>${p.fabricado}</td>
+<td>
+
+<button class="btn-warning"
+onclick="editar(${index})">
+✏️
+</button>
+
+<button class="btn-danger"
+onclick="eliminar(${index})">
+🗑️
+</button>
+
+</td>
+</tr>
+`;
+
+});
+
+document.getElementById("tablaPrendas").innerHTML=html;
+
+}
+
+function nuevaPrenda(){
+
+Swal.fire({
+
+title:'Nueva Prenda',
+
+html:`
+<input id="marca" class="swal2-input" placeholder="Marca">
+<input id="talla" class="swal2-input" placeholder="Talla">
+<input id="color" class="swal2-input" placeholder="Color">
+<input id="fabricado" class="swal2-input" placeholder="Fabricado">
+`,
+
+preConfirm:()=>{
+
+return{
+
+marca:document.getElementById('marca').value,
+talla:document.getElementById('talla').value,
+color:document.getElementById('color').value,
+fabricado:document.getElementById('fabricado').value
+
+};
+
+}
+
+}).then(r=>{
+
+if(r.isConfirmed){
+
+prendas.push({
+
+id:Date.now(),
+...r.value
+
+});
+
+guardar();
+
+}
+
+});
+
+}
+
+function editar(i){
+
+let p=prendas[i];
+
+Swal.fire({
+
+title:'Editar',
+
+html:`
+<input id="marca" class="swal2-input" value="${p.marca}">
+<input id="talla" class="swal2-input" value="${p.talla}">
+<input id="color" class="swal2-input" value="${p.color}">
+<input id="fabricado" class="swal2-input" value="${p.fabricado}">
+`,
+
+preConfirm:()=>{
+
+prendas[i]={
+
+id:p.id,
+marca:marca.value,
+talla:talla.value,
+color:color.value,
+fabricado:fabricado.value
+
+};
+
+guardar();
+
+}
+
+});
+
+}
+
+function eliminar(i){
+
+Swal.fire({
+
+title:'Eliminar?',
+text:'No se podrá recuperar',
+icon:'warning',
+showCancelButton:true
+
+}).then(r=>{
+
+if(r.isConfirmed){
+
+prendas.splice(i,1);
+guardar();
+
+}
+
+});
+
+}
+
+function exportarJSON(){
+
+const data=JSON.stringify(prendas,null,2);
+
+const blob=new Blob([data],
+{type:"application/json"});
+
+const url=URL.createObjectURL(blob);
+
+const a=document.createElement("a");
+
+a.href=url;
+a.download="prendas_backup.json";
+a.click();
+
+}
+
+document.getElementById("importar")
+.addEventListener("change",function(e){
+
+const file=e.target.files[0];
+
+const reader=new FileReader();
+
+reader.onload=function(){
+
+prendas=JSON.parse(reader.result);
+
+guardar();
+
+Swal.fire(
+"Importado",
+"Datos cargados",
+"success"
+);
+
+}
+
+reader.readAsText(file);
+
+});
+
+function abrirQR(){
+
+document.getElementById("qrContainer")
+.style.display="block";
+
+const qr=new Html5Qrcode("reader");
+
+qr.start(
+
+{ facingMode:"environment" },
+
+{ fps:10, qrbox:250 },
+
+(text)=>{
+
+Swal.fire(
+"QR Detectado",
+text,
+"success"
+);
+
+qr.stop();
+
+}
+
+);
+
+}
+
+let fechas=
+JSON.parse(localStorage.getItem("fechas"))||[];
+
+function guardarFecha(){
+
+let fecha=
+document.getElementById("fechaSeguimiento").value;
+
+if(!fecha)return;
+
+fechas.push(fecha);
+
+localStorage.setItem(
+"fechas",
+JSON.stringify(fechas)
+);
+
+mostrarFechas();
+
+}
+
+function mostrarFechas(){
+
+let html="<ul>";
+
+fechas.forEach(f=>{
+
+html+=`<li>${f}</li>`;
+
+});
+
+html+="</ul>";
+
+document.getElementById(
+"listaFechas"
+).innerHTML=html;
+
+}
+
+mostrarFechas();
+cargarTabla();
+
+</script>
+
+</body>
+</html>
